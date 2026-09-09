@@ -1,0 +1,5 @@
+model: openrouter/google/gemma-4-31b-it
+params:
+  temperature: 0.0
+  reasoning:
+    enabled: true

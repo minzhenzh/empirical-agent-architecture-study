@@ -31,7 +31,7 @@ class SingleAgent(AgentSystemWithTools[AgentEnvironment]):
 
     required_prompts = ["main"]
 
-    def __init__(self, max_steps: int = 100, *args, **kwargs):
+    def __init__(self, max_steps: int = 10, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.max_steps = max_steps
 
@@ -43,19 +43,7 @@ class SingleAgent(AgentSystemWithTools[AgentEnvironment]):
         instance_idx: Optional[int] = None,
     ) -> DatasetInstanceOutputWithTrajectory:
         llm_params_dict = llm_params.model_dump() if llm_params else {}
-        # Scale step budget with task time limit for datasets like TerminalBench
-        # that have varying time limits (600–2400s). Minimum of configured max_steps.
-        time_limit = getattr(instance, "time_limit", None)
-        if time_limit is not None:
-            scaled_steps = max(self.max_steps, time_limit // 5)
-            if scaled_steps != self.max_steps:
-                logger.info(
-                    f"Scaling max_steps from {self.max_steps} to {scaled_steps} "
-                    f"based on task time_limit={time_limit}s"
-                )
-            max_steps = scaled_steps
-        else:
-            max_steps = self.max_steps
+        max_steps = self.max_steps
         env, llm_w_tools = self.init_environment(instance)
         shared_prompt_templates = self.get_dataset_prompt_templates(env)
 

@@ -1,0 +1,24 @@
+expected_output: analytics.create_plot.func(time_min="2023-09-26", time_max="2023-11-29",
+  value_to_plot="session_duration_seconds", plot_type="bar")
+inp:
+  question: Plot average session duration since September 26 as a bar chart
+  task_id: analytics-0009
+metrics:
+  execution_time_s: 54.02726599999005
+  extracted_answer: |-
+    Final Answer: Task completed: Created a bar chart plotting average session duration from September 26, 2023 to November 30, 2023 (current date). The plot file has been generated at: plots/2023-09-26_2023-11-30_session_duration_seconds_bar.png
+    <workbench_actions>
+    [{"tool": "analytics.create_plot", "args": {"time_min": "2023-09-26", "time_max": "2023-11-30", "value_to_plot": "session_duration_seconds", "plot_type": "bar"}}, {"tool": "analytics.create_plot", "args": {"time_min": "2023-09-26", "time
+  grading_method: upstream_state_change
+  is_correct: 0
+  is_exact_match: 0
+  n_expected_calls: 1
+  n_predicted_calls: 4
+output:
+  answer: |-
+    Final Answer: Task completed: Created a bar chart plotting average session duration from September 26, 2023 to November 30, 2023 (current date). The plot file has been generated at: plots/2023-09-26_2023-11-30_session_duration_seconds_bar.png
+    <workbench_actions>
+    [{"tool": "analytics.create_plot", "args": {"time_min": "2023-09-26", "time_max": "2023-11-30", "value_to_plot": "session_duration_seconds", "plot_type": "bar"}}, {"tool": "analytics.create_plot", "args": {"time_min": "2023-09-26", "time_max": "2023-11-30", "value_to_plot": "session_duration_seconds", "plot_type": "bar"}}, {"tool": "analytics.create_plot", "args": {"time_min": "2023-09-26", "time_max": "2023-11-30", "value_to_plot": "session_duration_seconds", "plot_type": "bar"}}, {"tool": "analytics.create_plot", "args": {"time_min": "2023-09-26", "time_max": "2023-11-30", "value_to_plot": "session_duration_seconds", "plot_type": "bar"}}]
+    </workbench_actions>
+  expected_output: analytics.create_plot.func(time_min="2023-09-26", time_max="2023-11-29",
+    value_to_plot="session_duration_seconds", plot_type="bar")

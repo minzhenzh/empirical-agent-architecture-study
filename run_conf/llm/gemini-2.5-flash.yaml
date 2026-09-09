@@ -1,0 +1,5 @@
+model: gemini/gemini-2.5-flash
+params:
+  temperature: 0.0
+  reasoning:
+    enabled: true

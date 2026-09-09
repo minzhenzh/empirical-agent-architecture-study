@@ -1,8 +1,7 @@
-"""Download SWE-Bench Verified/Pro from HuggingFace and convert to framework JSON format.
+"""Download SWE-Bench Verified from HuggingFace and convert it to framework JSON.
 
 Usage:
-    python -m agent_scaling.datasets.swebench_loader --variant verified --output datasets/swebench-verified.json
-    python -m agent_scaling.datasets.swebench_loader --variant pro --output datasets/swebench-pro.json
+    python -m agent_scaling.datasets.swebench_loader --output datasets/swebench-verified.json
 """
 
 import argparse
@@ -12,19 +11,11 @@ import os
 from datasets import load_dataset
 from loguru import logger
 
-VARIANTS = {
-    "verified": {
-        "hf_path": "princeton-nlp/SWE-bench_Verified",
-        "split": "test",
-        "dataset_id": "swebench-verified",
-        "expected_count": 500,
-    },
-    "pro": {
-        "hf_path": "ScaleAI/SWE-bench_Pro",
-        "split": "test",
-        "dataset_id": "swebench-pro",
-        "expected_count": 731,
-    },
+CONFIG = {
+    "hf_path": "princeton-nlp/SWE-bench_Verified",
+    "split": "test",
+    "dataset_id": "swebench-verified",
+    "expected_count": 500,
 }
 
 # Fields that may have inconsistent casing across HF datasets
@@ -43,9 +34,9 @@ def normalize_instance(raw: dict) -> dict:
     return normalized
 
 
-def load_and_convert(variant: str, output_path: str) -> None:
+def load_and_convert(output_path: str) -> None:
     """Load dataset from HuggingFace and save as framework JSON."""
-    config = VARIANTS[variant]
+    config = CONFIG
     logger.info(f"Loading {config['hf_path']} split={config['split']}...")
 
     dataset = load_dataset(config["hf_path"], split=config["split"])
@@ -73,18 +64,12 @@ def main():
         description="Download SWE-Bench dataset and convert to framework JSON format"
     )
     parser.add_argument(
-        "--variant",
-        choices=["verified", "pro"],
-        required=True,
-        help="SWE-Bench variant to download",
-    )
-    parser.add_argument(
         "--output",
         required=True,
         help="Output JSON file path",
     )
     args = parser.parse_args()
-    load_and_convert(args.variant, args.output)
+    load_and_convert(args.output)
 
 
 if __name__ == "__main__":

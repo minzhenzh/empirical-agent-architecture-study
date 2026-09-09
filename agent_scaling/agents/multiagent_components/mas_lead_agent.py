@@ -29,10 +29,11 @@ class LeadAgent(BaseAgentWithTools):
         *args,
         memory: EnhancedMemory,
         min_iterations_per_agent: int = 3,
-        max_iterations_per_agent: int = 25,
+        max_iterations_per_agent: int = 3,
         num_base_agents: int = 3,
         max_rounds: int = 10,
         max_execution_time: int = 600,
+        subagent_llms: Optional[List] = None,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
@@ -42,6 +43,7 @@ class LeadAgent(BaseAgentWithTools):
         self.num_base_agents = num_base_agents
         self.max_rounds = max_rounds
         self.max_execution_time = max_execution_time
+        self.subagent_llms = subagent_llms or [self.llm] * num_base_agents
         self.subagents: Dict[str, WorkerSubagent] = {}
         self.subagent_kwargs = kwargs
         self.conv_history = AgentConversationHistory(agent_id="lead_agent")
@@ -141,10 +143,16 @@ class LeadAgent(BaseAgentWithTools):
         }
 
         # Create subagents based on the plan
-        for subtask in plan.subtasks:
+        llms_by_agent_id = {
+            llm.agent_identifier: llm for llm in self.subagent_llms
+        }
+        for index, subtask in enumerate(plan.subtasks):
             logger.info(
                 f"Creating agent {subtask.agent_id} with focus: {subtask.focus}"
             )
+            assigned_llm = llms_by_agent_id.get(subtask.agent_id)
+            if assigned_llm is None:
+                assigned_llm = self.subagent_llms[index]
             # Create subagent with proper parameters
             subagent = WorkerSubagent.init_from_agent(
                 # Required parameters for ResearchSubagent
@@ -156,6 +164,7 @@ class LeadAgent(BaseAgentWithTools):
                 task_instance=task_instance,
                 min_iterations_per_agent=self.min_iterations_per_agent,
                 max_iterations_per_agent=self.max_iterations_per_agent,
+                llm=assigned_llm,
                 **filtered_subagent_kwargs,
             )
             self.subagents[subtask.agent_id] = subagent

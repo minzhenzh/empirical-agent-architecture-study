@@ -1,0 +1,3 @@
+model: fireworks_ai/accounts/fireworks/models/gemma-4-e4b
+params:
+  temperature: 0.0

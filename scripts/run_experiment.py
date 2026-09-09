@@ -26,7 +26,7 @@ def _cleanup_all_containers():
         containers = client.containers.list(filters={"status": "running"})
         for c in containers:
             image_name = c.image.tags[0] if c.image.tags else ""
-            if "swebench/" in image_name or "terminalbench/" in image_name or "t-bench/" in image_name:
+            if "swebench/" in image_name:
                 try:
                     c.kill()
                     c.remove(force=True)

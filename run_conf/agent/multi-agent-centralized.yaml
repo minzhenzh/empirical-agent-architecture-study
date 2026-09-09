@@ -1,4 +1,6 @@
 name: multi-agent-centralized
+orchestrator: ${llm.model}
+subagent: ["${llm.model}", "${llm.model}", "${llm.model}"]
 prompts:
   lead_agent:
     local_path: prompts/multi-agent/lead_agent.yaml
@@ -8,18 +10,18 @@ prompts:
 # Centralized multi-agent parameters
 n_base_agents: 3
 min_iterations_per_agent: 3
-max_iterations_per_agent: 25
-max_rounds: 10
+max_iterations_per_agent: 3
+max_rounds: 5
 task_blurb: "task coordinator"
 
 # Execution control parameters
 max_execution_time: 600  # Total orchestration time limit in seconds
 worker_timeout: 300      # Per-worker timeout
 
-# Memory management parameters  
+# Memory management parameters
 max_findings: 100        # Increased to preserve more context
 
 # Communication strategy configuration
 communication:
   strategy: orchestrated  # Options: orchestrated, blackboard, broadcast, pipeline, consensus, none
-  config_path: communication/orchestrated.yaml  # Path to detailed communication config 
+  config_path: communication/orchestrated.yaml  # Path to detailed communication config

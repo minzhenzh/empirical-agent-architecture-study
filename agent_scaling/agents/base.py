@@ -53,7 +53,8 @@ class BaseAgent:
         prompts: Dict[str, Prompt],
         **kwargs,
     ) -> "BaseAgent":
-        llm = llm_config.get_llm()
+        llm_identity = kwargs.pop("llm_identity", {})
+        llm = llm_config.get_llm(**llm_identity)
         dataset = dataset_config.dataset
         return cls(llm=llm, dataset=dataset, prompts=prompts, **kwargs)
 
@@ -96,6 +97,7 @@ class BaseAgentWithTools(BaseAgent, Generic[AgentEnvType]):
         env_prompts: Dict[str, Prompt] | None = None,
         **kwargs,
     ):
+        self._evaluation_envs: List[AgentEnvironment] = []
         super().__init__(
             *args,
             **kwargs,
@@ -116,7 +118,8 @@ class BaseAgentWithTools(BaseAgent, Generic[AgentEnvType]):
         prompts: Dict[str, Prompt],
         **kwargs,
     ) -> "BaseAgentWithTools":
-        llm = llm_config.get_llm()
+        llm_identity = kwargs.pop("llm_identity", {})
+        llm = llm_config.get_llm(**llm_identity)
         dataset = dataset_config.dataset
         env_config = dataset_config.env
         env = env_config.name
@@ -146,7 +149,44 @@ class BaseAgentWithTools(BaseAgent, Generic[AgentEnvType]):
             env_prompts=self.env_prompts,
             agent_id=agent_id,
         )
+        if dataset_instance is not None:
+            self._evaluation_envs.append(env)
         return env
+
+    def collect_environment_artifacts(self) -> List[Dict[str, object]]:
+        """Collect evaluator artifacts from this system's environments.
+
+        The traversal is deliberately architecture-neutral: it handles direct
+        environments plus nested agent collections exposed through conventional
+        ``subagents``/``lead_agent`` attributes, without knowing any benchmark.
+        """
+        artifacts: List[Dict[str, object]] = []
+        seen_objects: set[int] = set()
+        seen_envs: set[int] = set()
+
+        def visit(obj: object) -> None:
+            if id(obj) in seen_objects:
+                return
+            seen_objects.add(id(obj))
+
+            for env in getattr(obj, "_evaluation_envs", []):
+                if id(env) in seen_envs:
+                    continue
+                seen_envs.add(id(env))
+                artifact = env.evaluation_artifact()
+                if artifact is not None:
+                    artifacts.append(artifact)
+
+            subagents = getattr(obj, "subagents", None)
+            if isinstance(subagents, dict):
+                for subagent in subagents.values():
+                    visit(subagent)
+            lead_agent = getattr(obj, "lead_agent", None)
+            if lead_agent is not None:
+                visit(lead_agent)
+
+        visit(self)
+        return artifacts
 
     def init_environment(
         self,
@@ -183,7 +223,8 @@ class AgentSystem(BaseAgentSystem, BaseAgent, ABC):
         prompts: Dict[str, Prompt],
         **kwargs,
     ) -> "AgentSystem":
-        llm = llm_config.get_llm()
+        llm_identity = kwargs.pop("llm_identity", {})
+        llm = llm_config.get_llm(**llm_identity)
         dataset = dataset_config.dataset
         return cls(llm=llm, dataset=dataset, prompts=prompts, **kwargs)
 
@@ -199,7 +240,8 @@ class AgentSystemWithTools(AgentSystem, BaseAgentWithTools[AgentEnvType], ABC):
         prompts: Dict[str, Prompt],
         **kwargs,
     ) -> "AgentSystemWithTools":
-        llm = llm_config.get_llm()
+        llm_identity = kwargs.pop("llm_identity", {})
+        llm = llm_config.get_llm(**llm_identity)
         dataset = dataset_config.dataset
         env_config = dataset_config.env
         env = env_config.name

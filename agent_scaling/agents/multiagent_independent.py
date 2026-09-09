@@ -38,14 +38,8 @@ class IndependentMultiAgentSystem(AgentSystemWithTools):
     answer into a single response. No voting, no cross-validation, no
     analytic comparison.
 
-    Constructor defaults vs. canonical configuration. The default value for
-    `max_iterations_per_agent` (10) below is a minimal-config fallback
-    intended for ad-hoc tests and notebook usage; it is not the value used
-    for the experiments reported in the accompanying paper. The canonical
-    runs invoke this class through Hydra with the configuration in
-    ``run_conf/agent/multi-agent-independent.yaml``, which sets
-    ``max_iterations_per_agent=25``. Downstream users should treat the YAML
-    value as the reference configuration.
+    Canonical study values are supplied by Hydra; constructor defaults remain
+    available for lightweight direct use.
     """
 
     required_prompts = ["subagent"]
@@ -55,7 +49,8 @@ class IndependentMultiAgentSystem(AgentSystemWithTools):
         *args,
         n_base_agents: int = 3,
         min_iterations_per_agent: int = 3,
-        max_iterations_per_agent: int = 10,
+        max_iterations_per_agent: int = 3,
+        agent_llms: Optional[List] = None,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
@@ -63,6 +58,7 @@ class IndependentMultiAgentSystem(AgentSystemWithTools):
         self.n_base_agents = n_base_agents
         self.min_iterations_per_agent = min_iterations_per_agent
         self.max_iterations_per_agent = max_iterations_per_agent
+        self.agent_llms = agent_llms or [self.llm] * n_base_agents
         self.subagents: Dict[str, WorkerSubagent] = {}
 
         logger.info(
@@ -84,6 +80,7 @@ class IndependentMultiAgentSystem(AgentSystemWithTools):
                 task_instance=task_instance,
                 min_iterations_per_agent=self.min_iterations_per_agent,
                 max_iterations_per_agent=self.max_iterations_per_agent,
+                llm=self.agent_llms[i],
             )
             self.subagents[agent_id] = subagent
         logger.info(
@@ -218,11 +215,11 @@ class IndependentMultiAgentSystem(AgentSystemWithTools):
         if synthesized_answer:
             submission_response = self._auto_submit(synthesized_answer)
 
-        # Canonical env status. For text-output benchmarks (Finance-Agent,
-        # WorkBench, BrowseComp-Plus, PlanCraft) the grader reads
+        # Canonical env status. For text-output benchmarks (WorkBench and
+        # PlanCraft) the grader reads
         # agent_output, so env_status is only infrastructure metadata. For
         # environment-state benchmarks evaluated against a Docker container's
-        # terminal state (SWE-bench Verified, Terminal-Bench), independent
+        # terminal state (SWE-bench Verified), independent
         # container states cannot be physically merged across sub-agent runs,
         # so we deterministically report the first sub-agent's env status in
         # insertion order, unconditionally and without any success-based
@@ -260,6 +257,14 @@ class IndependentMultiAgentSystem(AgentSystemWithTools):
                 "total_iterations": total_iterations,
                 "execution_time": execution_time,
                 "synthesized_answer": synthesized_answer,
+                "agent_conversations": {
+                    agent_id: agent.conv_history.model_dump()
+                    for agent_id, agent in self.subagents.items()
+                },
+                "agent_env_status": {
+                    agent_id: agent.env.env_status().model_dump()
+                    for agent_id, agent in self.subagents.items()
+                },
             }
             write_yaml(
                 output_data,

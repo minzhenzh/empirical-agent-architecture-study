@@ -1,4 +1,5 @@
 import os.path as osp
+import threading
 import time
 from typing import List, Optional
 
@@ -10,6 +11,9 @@ from litellm.types.caching import LiteLLMCacheType
 
 from agent_scaling.llm.callbacks import LocalLogger
 from agent_scaling.logger import logger
+
+
+_local_logging_lock = threading.Lock()
 
 
 def get_root_dir():
@@ -24,7 +28,12 @@ def enable_local_logging(prompt_only: bool = False):
     import litellm._logging as litellm_logging
 
     litellm_logging._disable_debugging()  # type: ignore
-    litellm.callbacks.append(LocalLogger(prompt_only=prompt_only))
+    with _local_logging_lock:
+        existing = [cb for cb in litellm.callbacks if isinstance(cb, LocalLogger)]
+        for callback in existing:
+            callback.prompt_only = prompt_only
+        if not existing:
+            litellm.callbacks.append(LocalLogger(prompt_only=prompt_only))
 
 
 def clear_callbacks():

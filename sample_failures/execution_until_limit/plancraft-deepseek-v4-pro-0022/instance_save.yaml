@@ -1,0 +1,18 @@
+expected_output: brown_concrete_powder
+inp:
+  inventory:
+    cocoa_beans: 1
+    furnace_minecart: 1
+    gravel: 4
+    pink_glazed_terracotta: 30
+    polished_granite: 51
+    sand: 4
+    warped_fungus_on_a_stick: 1
+  target: brown_concrete_powder
+metrics:
+  execution_time_s: 51.54065533398534
+  num_steps: 10
+  success: 0
+output:
+  num_steps: 10
+  success: false

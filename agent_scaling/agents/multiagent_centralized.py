@@ -26,7 +26,7 @@ class CentralizedMultiAgentSystem(AgentSystemWithTools):
         *args,
         n_base_agents: int = 3,
         min_iterations_per_agent: int = 3,
-        max_iterations_per_agent: int = 10,
+        max_iterations_per_agent: int = 3,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
@@ -42,7 +42,7 @@ class CentralizedMultiAgentSystem(AgentSystemWithTools):
             min_iterations_per_agent=min_iterations_per_agent,
             max_iterations_per_agent=max_iterations_per_agent,
             num_base_agents=n_base_agents,
-            max_rounds=kwargs.get("max_rounds", 10),
+            max_rounds=kwargs.get("max_rounds", 5),
             max_execution_time=kwargs.get("max_execution_time", 600),
             domain_config={"task_blurb": kwargs.get("task_blurb", "task coordinator")},
             **{k: v for k, v in kwargs.items() if k not in ("max_rounds", "max_execution_time", "task_blurb")},

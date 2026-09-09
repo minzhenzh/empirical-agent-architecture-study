@@ -1,0 +1,9 @@
+defaults:
+  - multi-agent-centralized
+  - _self_
+
+orchestrator: openrouter/qwen/qwen3.5-397b-a17b
+subagent:
+  - openrouter/deepseek/deepseek-v4-flash
+  - openrouter/deepseek/deepseek-v4-flash
+  - openrouter/deepseek/deepseek-v4-flash

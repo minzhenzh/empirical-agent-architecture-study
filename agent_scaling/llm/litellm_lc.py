@@ -1,10 +1,14 @@
 import os
 import time
 import threading
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Mapping, Optional, cast
 
 import litellm
-import langfuse
+try:
+    import langfuse
+except ImportError:  # Langfuse is optional for local experiment runs.
+    langfuse = None  # type: ignore[assignment]
 
 # Auto-drop unsupported params (e.g., temperature=0 for gpt-5 models)
 litellm.drop_params = True
@@ -16,6 +20,9 @@ from langchain_litellm.chat_models.litellm import ChatLiteLLM
 from litellm.exceptions import APIConnectionError, AuthenticationError, RateLimitError, ServiceUnavailableError
 from litellm.types.utils import ModelResponse
 from loguru import logger as _logger
+from pydantic import Field
+
+from agent_scaling.llm.call_logging import write_llm_call
 
 
 def _is_quota_exhaustion(error: Exception) -> bool:
@@ -91,6 +98,9 @@ _gemini_rotator = _GeminiKeyRotator()
 
 class ChatLiteLLMLC(ChatLiteLLM):
     log_langfuse: bool = False
+    agent_identifier: str = Field(default="agent_1", exclude=True)
+    agent_role: str = Field(default="agent", exclude=True)
+    architecture: str = Field(default="single-agent", exclude=True)
 
     def _create_chat_result(self, response: Mapping[str, Any]) -> ChatResult:
         res: ChatResult = super()._create_chat_result(response)
@@ -100,6 +110,25 @@ class ChatLiteLLMLC(ChatLiteLLM):
         return res
 
     def invoke(self, *args, **kwargs) -> AIMessage:
+        """Invoke the model and persist one raw, attributable call-metric row."""
+        started = time.perf_counter()
+        try:
+            response = self._invoke_with_retries(*args, **kwargs)
+        except Exception as error:
+            self._record_call(
+                response=None,
+                latency_s=time.perf_counter() - started,
+                error=error,
+            )
+            raise
+        self._record_call(
+            response=response,
+            latency_s=time.perf_counter() - started,
+            error=None,
+        )
+        return response
+
+    def _invoke_with_retries(self, *args, **kwargs) -> AIMessage:
         # Retry on IndexError from empty model responses (thinking models)
         # and on rate limit / transient errors that bubble up past _generate
         max_retries = 5
@@ -119,7 +148,15 @@ class ChatLiteLLMLC(ChatLiteLLM):
                         f"Empty model response after {max_retries} attempts, "
                         "returning fallback message"
                     )
-                    return AIMessage(content="[Model returned empty response]")
+                    return AIMessage(
+                        content="[Model returned empty response]",
+                        response_metadata={
+                            "call_error": {
+                                "type": "EmptyModelResponse",
+                                "message": f"empty response after {max_retries} attempts",
+                            }
+                        },
+                    )
             except APIConnectionError as e:
                 # Don't retry here — _generate already retried 8 times.
                 # Retrying in invoke creates zombie threads that hold the
@@ -128,7 +165,15 @@ class ChatLiteLLMLC(ChatLiteLLM):
                     f"Connection error in invoke after _generate exhausted retries: "
                     f"{type(e).__name__}, returning fallback to avoid semaphore deadlock"
                 )
-                return AIMessage(content="[API connection failed — submit your current work]")
+                return AIMessage(
+                    content="[API connection failed — submit your current work]",
+                    response_metadata={
+                        "call_error": {
+                            "type": type(e).__name__,
+                            "message": str(e),
+                        }
+                    },
+                )
             except (RateLimitError, ServiceUnavailableError) as e:
                 if isinstance(e, RateLimitError) and _is_quota_exhaustion(e):
                     _logger.error(f"Quota exhausted (not retryable): {e}")
@@ -146,8 +191,10 @@ class ChatLiteLLMLC(ChatLiteLLM):
                 if _is_quota_exhaustion(e):
                     _logger.error(f"Quota exhausted (not retryable): {e}")
                     raise
-                if ("429" in str(e) or "RESOURCE_EXHAUSTED" in str(e)) and attempt < max_retries - 1:
-                    wait = min(10 * (2 ** attempt), 120)
+                if (
+                    "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e)
+                ) and attempt < max_retries - 1:
+                    wait = min(10 * (2**attempt), 120)
                     _logger.warning(
                         f"Rate limit in invoke (attempt {attempt+1}/{max_retries}), "
                         f"retrying in {wait}s..."
@@ -156,12 +203,85 @@ class ChatLiteLLMLC(ChatLiteLLM):
                 else:
                     raise
 
+    def _record_call(
+        self,
+        *,
+        response: Optional[AIMessage],
+        latency_s: float,
+        error: Optional[Exception],
+    ) -> None:
+        usage: Dict[str, Any] = {}
+        response_metadata: Dict[str, Any] = {}
+        if response is not None:
+            usage = dict(response.usage_metadata or {})
+            response_metadata = dict(response.response_metadata or {})
+            token_usage = response_metadata.get("token_usage") or response_metadata.get(
+                "usage"
+            )
+            if isinstance(token_usage, Mapping):
+                usage = {**dict(token_usage), **usage}
+
+        input_details = usage.get("input_token_details") or usage.get(
+            "prompt_tokens_details"
+        ) or {}
+        output_details = usage.get("output_token_details") or usage.get(
+            "completion_tokens_details"
+        ) or {}
+        input_tokens = usage.get("input_tokens", usage.get("prompt_tokens"))
+        output_tokens = usage.get("output_tokens", usage.get("completion_tokens"))
+        total_tokens = usage.get("total_tokens")
+        if total_tokens is None and input_tokens is not None and output_tokens is not None:
+            total_tokens = input_tokens + output_tokens
+
+        provider = response_metadata.get("provider")
+        if provider is None and self.model:
+            provider = self.model.split("/", 1)[0] if "/" in self.model else None
+
+        call_error = response_metadata.get("call_error")
+        error_record = (
+            {"type": type(error).__name__, "message": str(error)}
+            if error is not None
+            else call_error
+        )
+        write_llm_call(
+            {
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "architecture": self.architecture,
+                "agent_identifier": self.agent_identifier,
+                "agent_role": self.agent_role,
+                "model_identifier": response_metadata.get("model_name") or self.model,
+                "provider": provider,
+                "backend_metadata": {
+                    key: response_metadata[key]
+                    for key in ("id", "system_fingerprint", "finish_reason")
+                    if response_metadata.get(key) is not None
+                },
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "total_tokens": total_tokens,
+                "reasoning_tokens": output_details.get("reasoning")
+                or output_details.get("reasoning_tokens")
+                or usage.get("reasoning_tokens"),
+                "cached_tokens": input_details.get("cache_read")
+                or input_details.get("cached_tokens")
+                or usage.get("cached_tokens"),
+                "latency_s": latency_s,
+                "success": error_record is None,
+                "retry_metadata": {
+                    "outer_max_attempts": 5,
+                    "langchain_max_retries": self.max_retries,
+                },
+                "error": error_record,
+            }
+        )
     def _log_langfuse(
         self,
         message_dicts: List[Dict[str, Any]],
         params: Dict[str, Any],
         response: ModelResponse,
     ) -> None:
+        if langfuse is None:
+            raise RuntimeError("Langfuse logging requested, but langfuse is not installed")
         client = langfuse.Langfuse()  # type: ignore
         model_params = {
             k: v
@@ -181,7 +301,6 @@ class ChatLiteLLMLC(ChatLiteLLM):
             output=response.choices[0].message,  # type: ignore
             metadata=response.model_dump(),
             usage_details=response.usage if hasattr(response, "usage") else None,  # type: ignore
-            cost_details={"total": response._hidden_params.get("response_cost", 0)},
         )
         gen_context.end()
         client.flush()

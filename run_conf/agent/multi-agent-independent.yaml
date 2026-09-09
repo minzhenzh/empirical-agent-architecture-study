@@ -1,4 +1,5 @@
 name: multi-agent-independent
+agents: ["${llm.model}", "${llm.model}", "${llm.model}"]
 prompts:
   subagent:
     local_path: prompts/multi-agent/subagent.yaml
@@ -6,5 +7,5 @@ prompts:
 # Independent multi-agent parameters (no coordination)
 n_base_agents: 3
 min_iterations_per_agent: 3
-max_iterations_per_agent: 25
+max_iterations_per_agent: 3
 task_blurb: "independent worker"

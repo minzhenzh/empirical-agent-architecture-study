@@ -1,0 +1,5 @@
+model: openrouter/qwen/qwen3.5-9b
+params:
+  temperature: 0.0
+  reasoning:
+    enabled: true

@@ -2,8 +2,6 @@ from abc import ABC, abstractmethod
 from functools import cached_property
 from typing import Any, Dict, Generic, List, Literal, Optional, TypeVar, Union
 
-from langfuse.api.resources.prompts.types import Prompt_Text
-from langfuse.model import TextPromptClient
 from pydantic import BaseModel, Field
 
 from agent_scaling.config.prompts import Prompt
@@ -30,6 +28,19 @@ class DatasetEnvStatus(BaseModel):
 T = TypeVar("T", bound=DatasetInstance)
 
 
+class LocalPromptTemplate:
+    """Small local equivalent of the Langfuse text prompt compiler."""
+
+    def __init__(self, prompt: str):
+        self.prompt = prompt
+
+    def compile(self, **kwargs: Any) -> str:
+        compiled = self.prompt
+        for name, value in kwargs.items():
+            compiled = compiled.replace(f"{{{{{name}}}}}", str(value))
+        return compiled
+
+
 class TrajectoryStep(BaseModel):
     action: str
     observation: str
@@ -40,6 +51,7 @@ class TrajectoryStep(BaseModel):
 class DatasetInstanceOutput(BaseModel, Generic[T]):
     data_instance: T
     agent_output: str | Any
+    environment_artifacts: List[Dict[str, Any]] = Field(default_factory=list)
 
 
 class DatasetInstanceOutputWithTrajectory(DatasetInstanceOutput[T], Generic[T]):
@@ -61,7 +73,7 @@ class DatasetSharedPrompts(BaseModel):
             "task_instance",
             "task_output",
         ],
-        TextPromptClient,
+        LocalPromptTemplate,
     ] = {}
 
     def model_post_init(self, __context: Any) -> None:
@@ -90,16 +102,8 @@ class DatasetSharedPrompts(BaseModel):
 
     def _convert_to_prompt_text(
         self, name: str, prompt_template_str: str
-    ) -> TextPromptClient:
-        prompt_template = Prompt_Text(
-            name=name,
-            version=0,
-            labels=[],
-            tags=[],
-            config={},
-            prompt=prompt_template_str,
-        )
-        return TextPromptClient(prompt=prompt_template)
+    ) -> LocalPromptTemplate:
+        return LocalPromptTemplate(prompt_template_str)
 
     def get_prompt_templates_for_instance(
         self, prompt_info: Dict[str, str]

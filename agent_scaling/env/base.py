@@ -68,6 +68,15 @@ class AgentEnvironment:
         """
         return False
 
+    def evaluation_artifact(self) -> Optional[Dict[str, object]]:
+        """Return deterministic environment data needed by dataset grading.
+
+        Most environments are graded from ``agent_output`` and return no
+        artifact. Stateful environments may override this without coupling
+        benchmark logic to an agent architecture.
+        """
+        return None
+
     @classmethod
     def check_required_prompts(cls, prompts: Dict[str, Prompt]) -> None:
         required_but_not_found = []

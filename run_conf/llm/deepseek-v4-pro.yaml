@@ -1,0 +1,4 @@
+model: openrouter/deepseek/deepseek-v4-pro
+params:
+  temperature: 0.0
+  reasoning_effort: high

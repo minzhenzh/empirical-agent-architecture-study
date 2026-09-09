@@ -1,7 +1,7 @@
 """Docker container lifecycle manager for benchmark environments.
 
 Provides a DockerContainer class that manages container creation, command execution,
-file operations, and cleanup. Used by SWE-Bench and Terminal-Bench environments.
+file operations, and cleanup. Used by the SWE-Bench Verified environment.
 """
 
 import io

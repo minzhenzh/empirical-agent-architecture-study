@@ -16,7 +16,7 @@ from agent_scaling.env.tools import cls_tool
 
 @register_env("swebench")
 class SWEBenchEnvironment(AgentEnvironmentTools):
-    """Docker-based environment for SWE-Bench Verified and Pro evaluation.
+    """Docker-based environment for SWE-Bench Verified evaluation.
 
     Provides 4 tools: bash, read_file, edit_file, submit_patch.
     Multiple agent environments can share the same Docker container for

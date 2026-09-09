@@ -1,0 +1,31 @@
+expected_output: |-
+  calendar.create_event.func(event_name="Catch up on overdue tasks", participant_email="kofi.mensah@atlas.com", event_start="2023-12-01 13:00:00", duration="30")
+  email.send_email.func(recipient="kofi.mensah@atlas.com", subject="Discuss overdue tasks", body="I noticed you have a few overdue tasks - let's catch up tomorrow.")
+inp:
+  question: I think kofi might have some overdue tasks. Can you check and if so, book
+    a half hour meeting with them called 'Catch up on overdue tasks' at the earliest
+    time I'm free tomorrow and send them an email titled 'Discuss overdue tasks' saying
+    'I noticed you have a few overdue tasks - let's catch up tomorrow.' Otherwise
+    email them with 'Nice work keeping on top of your tasks this sprint!' titled 'Good
+    work this sprint'
+  task_id: multi_domain-0157
+metrics:
+  execution_time_s: 26.85041887499392
+  extracted_answer: |-
+    Final Answer: Auto-submit: step budget exhausted
+    <workbench_actions>
+    [{"tool": "company_directory.find_email_address", "args": {"name": "kofi"}}, {"tool": "project_management.search_tasks", "args": {"assigned_to_email": "kofi.mensah@atlas.com"}}, {"tool": "email.search_emails", "args": {"query": ""}}, {"tool": "company_directory.find_email_address", "args": {"name": "Sam"}}, {"tool": "company_directory.find_email_address", "args": {"name": "sam"}}, {"tool": "email.get_email_information_by_id", "
+  grading_method: upstream_state_change
+  is_correct: 0
+  is_exact_match: 0
+  n_expected_calls: 2
+  n_predicted_calls: 10
+output:
+  answer: |-
+    Final Answer: Auto-submit: step budget exhausted
+    <workbench_actions>
+    [{"tool": "company_directory.find_email_address", "args": {"name": "kofi"}}, {"tool": "project_management.search_tasks", "args": {"assigned_to_email": "kofi.mensah@atlas.com"}}, {"tool": "email.search_emails", "args": {"query": ""}}, {"tool": "company_directory.find_email_address", "args": {"name": "Sam"}}, {"tool": "company_directory.find_email_address", "args": {"name": "sam"}}, {"tool": "email.get_email_information_by_id", "args": {"email_id": "00000436", "field": "inbox/outbox"}}, {"tool": "company_directory.find_email_address", "args": {"name": "samuel"}}, {"tool": "email.get_email_information_by_id", "args": {"email_id": "00000436", "field": "subject"}}, {"tool": "company_directory.find_email_address", "args": {"name": "sam."}}, {"tool": "project_management.search_tasks", "args": {"assigned_to_email": "sam"}}]
+    </workbench_actions>
+  expected_output: |-
+    calendar.create_event.func(event_name="Catch up on overdue tasks", participant_email="kofi.mensah@atlas.com", event_start="2023-12-01 13:00:00", duration="30")
+    email.send_email.func(recipient="kofi.mensah@atlas.com", subject="Discuss overdue tasks", body="I noticed you have a few overdue tasks - let's catch up tomorrow.")

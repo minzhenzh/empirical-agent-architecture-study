@@ -1,0 +1,23 @@
+expected_output: email.forward_email.func(email_id="00000198", recipient="chenwei.zhang@atlas.com")
+inp:
+  question: chenwei needs all the emails from nadia last week about 'Task Update on
+    Improve UX of feedback submission'. Can you forward them?
+  task_id: email-0043
+metrics:
+  execution_time_s: 31.716786000004504
+  extracted_answer: |-
+    Final Answer: Auto-submit: step budget exhausted
+    <workbench_actions>
+    [{"tool": "email.search_emails", "args": {"query": "Task Update on Improve UX of feedback submission", "date_min": "2023-11-23", "date_max": "2023-11-29"}}, {"tool": "email.search_emails", "args": {"query": "Task Update on Improve UX of feedback submission", "date_min": "2023-11-23", "date_max": "2023-11-29"}}, {"tool": "email.search_emails", "args": {"query": "Task Update on Improve UX of feedback submission", "date_min": "202
+  grading_method: upstream_state_change
+  is_correct: 0
+  is_exact_match: 0
+  n_expected_calls: 1
+  n_predicted_calls: 5
+output:
+  answer: |-
+    Final Answer: Auto-submit: step budget exhausted
+    <workbench_actions>
+    [{"tool": "email.search_emails", "args": {"query": "Task Update on Improve UX of feedback submission", "date_min": "2023-11-23", "date_max": "2023-11-29"}}, {"tool": "email.search_emails", "args": {"query": "Task Update on Improve UX of feedback submission", "date_min": "2023-11-23", "date_max": "2023-11-29"}}, {"tool": "email.search_emails", "args": {"query": "Task Update on Improve UX of feedback submission", "date_min": "2023-11-27", "date_max": "2023-11-26"}}, {"tool": "email.search_emails", "args": {"query": "Task Update on Improve UX of feedback submission", "date_min": "2023-11-23", "date_max": "2023-11-29"}}, {"tool": "email.search_emails", "args": {"query": "nadia Task Update on Improve UX of feedback submission", "date_min": "2023-11-23", "date_max": "2023-11-29"}}]
+    </workbench_actions>
+  expected_output: email.forward_email.func(email_id="00000198", recipient="chenwei.zhang@atlas.com")

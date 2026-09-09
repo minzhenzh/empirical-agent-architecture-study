@@ -1,80 +1,33 @@
-# Environment & Secrets
+# Secrets and local environments
 .env
 .env.*
-*.env*
 !.env.example
-secrets/
-credentials/
-
-# Logs
-*.log
-logs/
-
-# Cache
-*.cache
-*cache*/
-.litellm_cache/
-.pytest_cache/
-.function_cache/
-__pycache__/
-
-# IDE & Editor
-.vscode/
-.idea/
-*.swp
-
-# Python
 .venv/
 venv/
-*.pyc
-*.pyo
 
-# Experiment outputs (may contain sensitive data)
+# Python and tool caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.cache
+*cache*/
+
+# Local output
+*.log
 exp_outputs/
-exp_outputs_new/
-exp_outputs_test/
 outputs/
-etc/
+third_party/
 
-# Data
-data_preprocess/
-sampled_datasets/
-browsecomp-plus-indexes/
+# Generated benchmark files
+datasets/workbench*.json
+datasets/swebench*.json
 
-# Notebooks & experimental
-notebooks/
-experimental/
-/agents/
+# Paper data is distributed separately from source.zip
+data/
 
-# Tests: keep only the round-2 unit tests for re-implemented architectures
-tests/__pycache__/
-tests/test_cache.py
-tests/test_langfuse_experiment.py
-tests/test_langfuse_prompt_management.py
-tests/test_langfuse.py
-tests/test_llm.py
-tests/test_tool_and_env.py
-
-# Misc
-*.md
-!README.md
+# Editor and OS files
+.DS_Store
+.idea/
+.vscode/
+*.swp
 .nfs*
-
-# Exclude private/sensitive dirs (NMI rebuttal)
-nmi_rebuttal/
-colab_analysis/
-latex/
-.omc/
-
-# Exclude licensed dataset files (users should download from originals)
-datasets/*.json
-
-# Allow key documentation files despite *.md exclusion
-!REPRODUCTION.md
-!DATA_AVAILABILITY.md
-!CHANGELOG.md
-
-# Allow round-2 unit tests for the re-implemented architectures
-!tests/test_decentralized_debate.py
-!tests/test_independent_synthesis.py
-!tests/test_finance_workbench_env.py

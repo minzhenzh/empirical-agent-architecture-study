@@ -1,0 +1,9 @@
+defaults:
+  - multi-agent-hybrid
+  - _self_
+
+orchestrator: openrouter/deepseek/deepseek-v4-flash
+subagent:
+  - openrouter/deepseek/deepseek-v4-pro
+  - openrouter/deepseek/deepseek-v4-pro
+  - openrouter/deepseek/deepseek-v4-pro

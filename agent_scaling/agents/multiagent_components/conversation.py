@@ -1,23 +1,13 @@
 from datetime import datetime
-from functools import cached_property
 from typing import Any, Dict, List, Literal, Optional
 
 from langchain_core.messages import AIMessage, convert_to_openai_messages
-from litellm.cost_calculator import completion_cost
 from litellm.types.utils import ModelResponse
 from pydantic import BaseModel, Field, computed_field
 
 from agent_scaling.datasets.base import DatasetEnvStatus
 
 from .plan import OrchestrationPlan
-
-"""
-from litellm import completion_cost
-completion_cost(response_obj)
-
-# Use https://artificialanalysis.ai/models/gpt-4 to track 
-"""
-
 
 class MessageTurn(BaseModel):
     round_num: int
@@ -35,20 +25,9 @@ class MessageTurnInternal(MessageTurn):
     message: Dict[str, Any]
     litellm_message: Optional[ModelResponse] = None
 
-    @property
-    def cost(self) -> Optional[float]:
-        return completion_cost(self.litellm_message) if self.litellm_message else None
-
-
 class LLMResponseMessage(BaseModel):
     tag: Optional[str] = None
     litellm_message: ModelResponse
-
-    @computed_field
-    @cached_property
-    def cost(self) -> Optional[float]:
-        return completion_cost(self.litellm_message) if self.litellm_message else None
-
 
 class AgentConversationHistory(BaseModel):
     agent_id: str
@@ -186,7 +165,6 @@ class OrchestrationResult(BaseModel):
     synthesized_answer: Optional[str] = None
 
     @computed_field
-    @cached_property
     def total_agent_iterations(self) -> int:
         return sum(
             conversation.total_iterations

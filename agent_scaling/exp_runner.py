@@ -1,18 +1,19 @@
 import concurrent.futures
 import contextlib
+import json
 import os
 import random
+import time
 import traceback
 from typing import Any, Dict, List, Optional, Union
 
-from langfuse._client.span import LangfuseSpan
 from pydantic import BaseModel
 from tqdm import tqdm
 
-from agent_scaling.agents import AgentSystem
 from agent_scaling.config.run import RunConfig
 from agent_scaling.datasets import Dataset, DatasetInstance
 from agent_scaling.logger import logger
+from agent_scaling.llm.call_logging import llm_instance_context
 from agent_scaling.utils import write_json, write_yaml
 
 
@@ -23,6 +24,13 @@ class InstanceSave(BaseModel):
     expected_output: Optional[Any] = None
 
 
+class InstanceExecutionError(RuntimeError):
+    def __init__(self, error: Exception, metrics: Dict[str, Union[int, float, str]]):
+        super().__init__(str(error))
+        self.original_error = error
+        self.metrics = metrics
+
+
 class ExperimentRunner:
     def __init__(self, config: RunConfig):
         self.config = config
@@ -30,14 +38,10 @@ class ExperimentRunner:
         self.output_dir = config.save_dir
         self.dataset: Dataset = self.config.dataset.dataset
         self.lf_dataset = self.config.dataset.langfuse_dataset
-        self.agent: AgentSystem = self.config.get_agent()
         logger.debug(f"Logging to langfuse: {self.log_langfuse}")
 
     def _get_context_manager(self, index: int) -> contextlib.AbstractContextManager:
-        if self.log_langfuse:
-            assert self.lf_dataset is not None, (
-                "Langfuse dataset must be set for logging"
-            )
+        if self.log_langfuse and self.lf_dataset is not None:
             return self.lf_dataset.items[index].run(
                 run_name=self.config.run_name,
                 run_description=self.config.llm.model,
@@ -105,7 +109,11 @@ class ExperimentRunner:
                 logger.error(f"Instance {i} failed with error: {e}")
                 # Record failure metrics so experiment continues
                 # Use "resolved" key to match dataset get_metrics expectations
-                metrics.append({"resolved": 0, "num_steps": 0, "success": 0})
+                metrics.append(
+                    e.metrics
+                    if isinstance(e, InstanceExecutionError)
+                    else {"resolved": 0, "num_steps": 0, "success": 0}
+                )
                 consecutive_failures += 1
                 if consecutive_failures >= max_consecutive_failures:
                     logger.error(
@@ -114,7 +122,13 @@ class ExperimentRunner:
                     )
                     break
 
-        all_metrics = self.dataset.get_metrics(metrics)
+        return self._finalize_dataset_metrics(metrics)
+
+    def _finalize_dataset_metrics(self, metrics: List[Any]) -> Dict[str, Any]:
+        """Combine benchmark, execution-time, and LLM-call metrics for a run."""
+        all_metrics = dict(self.dataset.get_metrics(metrics))
+        all_metrics.update(self._execution_time_summary(metrics))
+        all_metrics.update(self._llm_call_summary())
         if self.output_dir is not None:
             write_json(
                 all_metrics,
@@ -122,6 +136,94 @@ class ExperimentRunner:
                 indent=True,
             )
         return all_metrics
+
+    @staticmethod
+    def _execution_time_summary(metrics: List[Any]) -> Dict[str, Any]:
+        values = [
+            float(metric["execution_time_s"])
+            for metric in metrics
+            if isinstance(metric, dict)
+            and isinstance(metric.get("execution_time_s"), (int, float))
+            and not isinstance(metric.get("execution_time_s"), bool)
+        ]
+        return {
+            "execution_time_s_total": sum(values) if values else None,
+        }
+
+    def _llm_call_summary(self) -> Dict[str, Any]:
+        rows: List[Dict[str, Any]] = []
+        if self.output_dir is not None:
+            path = os.path.join(self.output_dir, "llm_calls.jsonl")
+            if os.path.exists(path):
+                with open(path, encoding="utf-8") as stream:
+                    for line_number, line in enumerate(stream, start=1):
+                        if not line.strip():
+                            continue
+                        try:
+                            row = json.loads(line)
+                        except json.JSONDecodeError as error:
+                            logger.warning(
+                                f"Skipping malformed llm_calls.jsonl line "
+                                f"{line_number}: {error}"
+                            )
+                            continue
+                        if isinstance(row, dict):
+                            rows.append(row)
+
+        token_keys = (
+            "input_tokens",
+            "output_tokens",
+            "total_tokens",
+            "reasoning_tokens",
+            "cached_tokens",
+        )
+
+        def numeric_values(key: str) -> List[float | int]:
+            return [
+                row[key]
+                for row in rows
+                if isinstance(row.get(key), (int, float))
+                and not isinstance(row.get(key), bool)
+            ]
+
+        def token_totals(model_rows: List[Dict[str, Any]]) -> Dict[str, Any]:
+            totals: Dict[str, Any] = {}
+            for key in token_keys:
+                values = [
+                    row[key]
+                    for row in model_rows
+                    if isinstance(row.get(key), (int, float))
+                    and not isinstance(row.get(key), bool)
+                ]
+                totals[key] = sum(values) if values else None
+            return totals
+
+        summary: Dict[str, Any] = {
+            "llm_call_count": len(rows),
+            "llm_call_success_count": sum(row.get("success") is True for row in rows),
+            "llm_call_failure_count": sum(row.get("success") is False for row in rows),
+        }
+        for key in token_keys:
+            values = numeric_values(key)
+            summary[key] = sum(values) if values else None
+        rows_by_model: Dict[str, List[Dict[str, Any]]] = {}
+        for row in rows:
+            model_identifier = row.get("model_identifier")
+            model_key = (
+                str(model_identifier)
+                if model_identifier not in (None, "")
+                else "unknown"
+            )
+            rows_by_model.setdefault(model_key, []).append(row)
+
+        summary["tokens_by_model"] = {
+            model_key: token_totals(model_rows)
+            for model_key, model_rows in sorted(rows_by_model.items())
+        }
+
+        latencies = numeric_values("latency_s")
+        summary["llm_latency_s_total"] = sum(latencies) if latencies else None
+        return summary
 
     def _process_single_instance(
         self,
@@ -143,18 +245,55 @@ class ExperimentRunner:
         """
 
         context_manager = self._get_context_manager(i)
-        with context_manager as span:
+        instance_identifier = self._get_instance_identifier(instance, i)
+        with llm_instance_context(
+            benchmark=self.dataset.dataset_id,
+            benchmark_instance_identifier=instance_identifier,
+            benchmark_instance_index=i,
+        ), context_manager as span:
             agent = self.config.get_agent()
             try:
-                output = agent.run_agent(
-                    instance,
-                    instance_dir=instance_dir,
-                    llm_params=self.config.llm.params,
-                    instance_idx=i,
+                started_at = time.perf_counter()
+                try:
+                    output = agent.run_agent(
+                        instance,
+                        instance_dir=instance_dir,
+                        llm_params=self.config.llm.params,
+                        instance_idx=i,
+                    )
+                except Exception as error:
+                    execution_time_s = time.perf_counter() - started_at
+                    failure_metrics: Dict[str, Union[int, float, str]] = {
+                        "resolved": 0,
+                        "num_steps": 0,
+                        "success": 0,
+                        "execution_time_s": execution_time_s,
+                    }
+                    if instance_dir is not None:
+                        write_yaml(
+                            InstanceSave(
+                                inp=instance.get_prompt_info(),
+                                output={
+                                    "error_type": type(error).__name__,
+                                    "error": str(error),
+                                },
+                                metrics=failure_metrics,
+                                expected_output=instance.expected_output,
+                            ).model_dump(),
+                            os.path.join(instance_dir, "instance_save.yaml"),
+                            indent=True,
+                        )
+                    raise InstanceExecutionError(error, failure_metrics) from error
+                execution_time_s = time.perf_counter() - started_at
+                collect_artifacts = getattr(
+                    agent, "collect_environment_artifacts", None
                 )
+                if callable(collect_artifacts):
+                    output.environment_artifacts = collect_artifacts()
                 inst_metrics = self.dataset.get_instance_eval_metrics(output)
+                inst_metrics["execution_time_s"] = execution_time_s
                 inst_output = self.dataset.get_instance_eval_output(output)
-                if isinstance(span, LangfuseSpan):
+                if self.log_langfuse and hasattr(span, "update"):
                     span.update(
                         input=instance.get_prompt_info(),
                         output=inst_output,
@@ -182,6 +321,14 @@ class ExperimentRunner:
             finally:
                 # Cleanup Docker containers — handle both single and multi-agent
                 self._cleanup_agent(agent)
+
+    @staticmethod
+    def _get_instance_identifier(instance: Any, index: int) -> str:
+        for field in ("instance_id", "task_id", "id", "doc_id"):
+            value = getattr(instance, field, None)
+            if value is not None:
+                return str(value)
+        return str(index)
 
     def _cleanup_agent(self, agent) -> None:
         """Clean up Docker containers for any agent type."""
@@ -259,16 +406,15 @@ class ExperimentRunner:
                             f"Error generating output: {exc}\nTraceback:\n{tb_str}"
                         )
                         metrics[i] = (
-                            f"Failed with exception: {exc}\nTraceback:\n{tb_str}"
+                            exc.metrics
+                            if isinstance(exc, InstanceExecutionError)
+                            else {
+                                "resolved": 0,
+                                "num_steps": 0,
+                                "success": 0,
+                            }
                         )
 
                     pbar.update(1)
 
-        all_metrics = self.dataset.get_metrics(metrics)
-        if self.output_dir is not None:
-            write_json(
-                all_metrics,
-                os.path.join(self.output_dir, "dataset_eval_metrics.json"),
-                indent=True,
-            )
-        return all_metrics
+        return self._finalize_dataset_metrics(metrics)

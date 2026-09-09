@@ -1,108 +1,122 @@
-"""WorkBench environment.
+"""Stateful WorkBench environment backed by the pinned upstream benchmark."""
 
-The upstream WorkBench benchmark (https://github.com/olly-styles/WorkBench)
-provides 16 mock business tools (email, calendar, customer service, etc.) and
-evaluates whether an agent's tool-call sequence matches expected actions.
-
-This environment provides the integration point used by the five coordination
-architectures in this repository. It exposes the common business tools as
-stubs that record the agent's calls into ``self.action_log``, plus a
-``submit`` tool through which the agent reports a final action summary. The
-dataset's ``get_instance_eval_metrics`` method then structurally grades the
-submission by parsing the agent's tool-call sequence and comparing it with
-the ``expected_actions`` list produced by ``scripts/_convert_workbench.py``;
-no LLM grader is used by the released WorkBench adapter.
-
-For bit-for-bit fidelity with the upstream WorkBench state-change evaluator
-(which runs predicted and ground-truth action sequences against the upstream
-mock databases and compares resulting states), users should run the upstream
-framework directly. This released adapter implements a structural
-action-call matching proxy for reproducible architecture comparisons and is
-the configuration described in the accompanying manuscript's Code
-Availability statement.
-"""
+import json
 from typing import Any, Dict, List, Optional
 
-from agent_scaling.env.base import AgentEnvironmentTools
+from langchain_core.tools import StructuredTool
+
+from agent_scaling.env.base import AgentEnvironment
 
 from .registry import register_env
 from .tools import cls_tool
+from .workbench_backend import DOMAIN_ALIASES, get_workbench_backend
 
 
 @register_env("workbench")
-class WorkbenchEnvironment(AgentEnvironmentTools):
-    """WorkBench environment with stub business tools + ``submit``."""
+class WorkbenchEnvironment(AgentEnvironment):
+    """Expose upstream domain tools with state isolated per environment."""
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, *args, tools=None, dataset_instance=None, **kwargs):
         self.is_done: bool = False
         self.success: bool = False
         self.num_steps: int = 0
         self.final_answer: Optional[str] = None
         self.action_log: List[Dict[str, Any]] = []
+        self.backend = get_workbench_backend()
+        self._workbench_state = self.backend.new_state()
 
-    def _log(self, tool: str, **args) -> str:
-        entry = {"tool": tool, "args": args}
-        self.action_log.append(entry)
-        return f"OK: recorded {tool}({args})"
+        metadata = getattr(dataset_instance, "metadata", {}) or {}
+        domains = metadata.get("domains") or []
+        if isinstance(domains, str):
+            domains = [domains]
+        if not domains and dataset_instance is not None:
+            inferred = str(getattr(dataset_instance, "task_id", "")).split("-", 1)[0]
+            domains = [inferred]
+        if dataset_instance is None:
+            # Base agent construction creates a bootstrap environment before a
+            # concrete instance is assigned. Actual run environments are
+            # recreated with task-specific domains.
+            domains = list(DOMAIN_ALIASES)
+        normalized_domains = [DOMAIN_ALIASES[d] for d in domains if d in DOMAIN_ALIASES]
+        if not normalized_domains:
+            raise ValueError(
+                f"WorkBench instance has no recognized domains: {domains!r}"
+            )
 
-    @cls_tool
-    def send_email(self, to: str, subject: str, body: str) -> str:
-        """Record an outgoing email."""
-        return self._log("send_email", to=to, subject=subject, body=body)
+        dynamic_tools: Dict[str, StructuredTool] = {}
+        for canonical_name in self.backend.tools_for_domains(normalized_domains):
+            upstream_tool = self.backend.tools[canonical_name]
+            alias = self.backend.alias_for(canonical_name)
 
-    @cls_tool
-    def search_emails(self, query: str) -> str:
-        """Search the mock email inbox; returns a deterministic placeholder."""
-        self._log("search_emails", query=query)
-        return f"(stub) 0 emails matched query: {query!r}"
+            def invoke_upstream(
+                _canonical_name=canonical_name,
+                **tool_args,
+            ):
+                self.action_log.append(
+                    {"tool": _canonical_name, "args": dict(tool_args)}
+                )
+                return self.backend.invoke(
+                    _canonical_name, tool_args, self._workbench_state
+                )
 
-    @cls_tool
-    def create_event(self, title: str, attendees: str, date: str, time: str) -> str:
-        """Create a calendar event."""
-        return self._log(
-            "create_event",
-            title=title,
-            attendees=attendees,
-            date=date,
-            time=time,
+            dynamic_tools[alias] = StructuredTool.from_function(
+                func=invoke_upstream,
+                name=alias,
+                description=(
+                    f"WorkBench tool `{canonical_name}`. "
+                    f"{upstream_tool.description}"
+                ),
+                args_schema=upstream_tool.args_schema,
+            )
+
+        submit_tool = self.submit
+        dynamic_tools[submit_tool.name] = submit_tool
+        self.env_tools = dynamic_tools
+        # WorkBench tools are selected per instance. An empty YAML tool list
+        # means "use the selected domain toolkit"; stale explicit lists would
+        # otherwise silently recreate the incomplete five-tool proxy.
+        if tools:
+            raise ValueError(
+                "WorkBench selects tools from each instance's domains; set "
+                "dataset.env.tools to [] in run_conf/dataset/workbench.yaml."
+            )
+        super().__init__(
+            *args,
+            tools=None,
+            dataset_instance=dataset_instance,
+            **kwargs,
         )
-
-    @cls_tool
-    def search_events(self, query: str) -> str:
-        """Search the mock calendar; returns a deterministic placeholder."""
-        self._log("search_events", query=query)
-        return f"(stub) 0 events matched query: {query!r}"
 
     @cls_tool
     def submit(self, reasoning: str) -> str:
-        """Submit the agent's final action plan and answer.
-
-        The full ``reasoning`` content is returned verbatim alongside a
-        compact summary of the business-tool calls the agent already made.
-        The downstream structural grader parses both signals, extracting
-        action calls from the returned text and comparing them with the
-        ``expected_actions`` list; no LLM grader is used in the released
-        WorkBench adapter.
-
-        Args:
-            reasoning: A natural-language summary of the tool calls / actions
-                taken, plus the final answer if applicable.
-
-        Returns:
-            The formatted final-answer string consumed by the grader.
-        """
+        """Finish the task after executing the necessary business tools."""
         self.final_answer = reasoning
         self.is_done = True
         self.success = True
-        action_calls = "; ".join(
-            f"{e['tool']}({e['args']})" for e in self.action_log
-        )
+        return self.export_submission(reasoning)
+
+    def export_action_block(self) -> str:
+        """Return the canonical machine-readable trace for dataset grading."""
         return (
-            f"Final Answer: {reasoning}\n"
-            f"Recorded tool calls during this task: "
-            f"{action_calls or '(none)'}"
+            "<workbench_actions>\n"
+            f"{json.dumps(self.action_log, default=str)}\n"
+            "</workbench_actions>"
         )
+
+    def export_submission(self, reasoning: str) -> str:
+        """Combine human-readable status with the canonical action trace."""
+        return f"Final Answer: {reasoning}\n{self.export_action_block()}"
+
+    def evaluation_artifact(self) -> Dict[str, object]:
+        """Expose executed actions through the generic environment interface."""
+        return {
+            "kind": "workbench_actions",
+            "agent_id": self.agent_id,
+            "actions": [
+                {"tool": action["tool"], "args": dict(action["args"])}
+                for action in self.action_log
+            ],
+        }
 
     def env_done(self) -> bool:
         return self.is_done

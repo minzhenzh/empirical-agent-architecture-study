@@ -41,15 +41,8 @@ class DecentralizedMultiAgentSystem(AgentSystemWithTools):
     rounds, exchanging full prior-round responses. After the last round, a
     consensus vote over the agents' final answers selects the system output.
 
-    Constructor defaults vs. canonical configuration. The default values for
-    `max_rounds` (3) and `consensus_threshold` (0.5) below are minimal-config
-    fallbacks intended for ad-hoc tests and notebook usage; they are not the
-    values used for the experiments reported in the accompanying paper. The
-    canonical runs invoke this class through Hydra with the configuration
-    in ``run_conf/agent/multi-agent-decentralized.yaml``, which sets
-    ``max_rounds=10``, ``consensus_threshold=0.7``, and
-    ``max_iterations_per_agent=25``. Downstream users should treat the YAML
-    values as the reference configuration.
+    Canonical study values are supplied by Hydra: three agents, three debate
+    rounds, and three tool iterations per agent per round.
     """
 
     required_prompts = ["subagent"]
@@ -59,9 +52,10 @@ class DecentralizedMultiAgentSystem(AgentSystemWithTools):
         *args,
         n_base_agents: int = 3,
         min_iterations_per_agent: int = 3,
-        max_iterations_per_agent: int = 25,
+        max_iterations_per_agent: int = 3,
         max_rounds: int = 3,
         consensus_threshold: float = 0.5,
+        agent_llms: Optional[List] = None,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
@@ -71,6 +65,7 @@ class DecentralizedMultiAgentSystem(AgentSystemWithTools):
         self.max_iterations_per_agent = max_iterations_per_agent
         self.max_rounds = max_rounds
         self.consensus_threshold = consensus_threshold
+        self.agent_llms = agent_llms or [self.llm] * n_base_agents
         self.subagents: Dict[str, WorkerSubagent] = {}
         self.consensus = create_communication_strategy(
             "consensus", {"consensus_threshold": consensus_threshold}
@@ -100,6 +95,7 @@ class DecentralizedMultiAgentSystem(AgentSystemWithTools):
                 task_instance=task_instance,
                 min_iterations_per_agent=self.min_iterations_per_agent,
                 max_iterations_per_agent=self.max_iterations_per_agent,
+                llm=self.agent_llms[i],
             )
             self.subagents[agent_id] = subagent
         logger.info(f"Created {len(self.subagents)} peer agents for debate")
@@ -410,6 +406,14 @@ class DecentralizedMultiAgentSystem(AgentSystemWithTools):
                 "consensus_record": {
                     "approved_findings": self.consensus.approved_findings,
                     "pending_findings": self.consensus.pending_findings,
+                },
+                "agent_conversations": {
+                    agent_id: agent.conv_history.model_dump()
+                    for agent_id, agent in self.subagents.items()
+                },
+                "agent_env_status": {
+                    agent_id: agent.env.env_status().model_dump()
+                    for agent_id, agent in self.subagents.items()
                 },
             }
             write_yaml(

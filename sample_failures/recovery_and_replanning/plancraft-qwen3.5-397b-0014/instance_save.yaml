@@ -1,0 +1,32 @@
+expected_output: comparator
+inp:
+  inventory:
+    bread: 48
+    crafting_table: 4
+    cyan_dye: 20
+    dark_oak_wood: 1
+    iron_axe: 1
+    oak_leaves: 45
+    oak_trapdoor: 42
+    petrified_oak_slab: 37
+    purple_wool: 30
+    quartz: 1
+    rabbit_foot: 26
+    red_sandstone_wall: 47
+    redstone_block: 1
+    soul_soil: 61
+    stone: 3
+    stone_sword: 1
+    stripped_oak_log: 1
+    white_concrete_powder: 33
+    white_shulker_box: 1
+    white_terracotta: 18
+    writable_book: 1
+  target: comparator
+metrics:
+  execution_time_s: 32.00292324999464
+  num_steps: 10
+  success: 0
+output:
+  num_steps: 10
+  success: false

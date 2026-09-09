@@ -1,0 +1,16 @@
+# WorkBench dataset configuration.
+# Run `scripts/setup_workbench.sh` to download the pinned upstream data and
+# produce the normalized JSON at `datasets/workbench.json`.
+# Upstream source: https://github.com/olly-styles/WorkBench
+# License: see upstream repository.
+
+dataset_id: workbench
+from_langfuse: false
+local_path: datasets/workbench.json  # populated by scripts/setup_workbench.sh
+max_instances: 100
+templates_local_path: prompts/dataset-shared/workbench.yaml
+env:
+  name: workbench
+  # Selected dynamically from each instance's `domains` metadata. The
+  # company-directory lookup and submit tools are added automatically.
+  tools: []

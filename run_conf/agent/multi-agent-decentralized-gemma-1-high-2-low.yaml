@@ -1,0 +1,8 @@
+defaults:
+  - multi-agent-decentralized
+  - _self_
+
+agents:
+  - openrouter/google/gemma-4-31b-it
+  - fireworks_ai/accounts/fireworks/models/gemma-4-e4b
+  - fireworks_ai/accounts/fireworks/models/gemma-4-e4b

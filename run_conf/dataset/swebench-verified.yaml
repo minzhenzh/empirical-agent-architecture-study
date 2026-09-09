@@ -1,6 +1,7 @@
 dataset_id: swebench-verified
 from_langfuse: false
 local_path: datasets/swebench-verified.json
+max_instances: 20
 templates_local_path: prompts/dataset-shared/swebench.yaml
 env:
   name: swebench

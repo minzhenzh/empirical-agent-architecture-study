@@ -25,7 +25,7 @@ class WorkerSubagent(BaseAgentWithTools):
         strategy: str,
         task_instance: DatasetInstance,
         min_iterations_per_agent: int = 3,
-        max_iterations_per_agent: int = 10,
+        max_iterations_per_agent: int = 3,
         **kwargs,
     ):
         super().__init__(
@@ -59,9 +59,10 @@ class WorkerSubagent(BaseAgentWithTools):
         original_query: str,
         strategy: str,
         min_iterations_per_agent: int = 3,
-        max_iterations_per_agent: int = 10,
+        max_iterations_per_agent: int = 3,
         **kwargs,
     ):
+        llm = kwargs.pop("llm", agent.llm)
         return cls(
             agent_id=agent_id,
             objective=objective,
@@ -69,7 +70,7 @@ class WorkerSubagent(BaseAgentWithTools):
             strategy=strategy,
             min_iterations_per_agent=min_iterations_per_agent,
             max_iterations_per_agent=max_iterations_per_agent,
-            llm=agent.llm,
+            llm=llm,
             dataset=agent.dataset,
             prompts=agent.prompts,
             tools=agent.tools,

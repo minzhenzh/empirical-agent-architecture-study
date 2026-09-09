@@ -19,7 +19,11 @@ from langchain_core.runnables import (
 )  # for typing for StructureTool (keep here)
 from langchain_core.tools import BaseTool, StructuredTool
 from langchain_core.tools.base import ArgsSchema
-from langfuse._client.observe import observe
+try:
+    from langfuse._client.observe import observe
+except ImportError:
+    def observe(function, **kwargs):
+        return function
 from pydantic import Field
 
 

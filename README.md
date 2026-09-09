@@ -1,308 +1,146 @@
-# Agent Scaling
+# An Empirical Study of Coordination Architecture and Model Composition in LLM Agent Systems
 
-A framework for studying scaling behaviors of LLM-based single-agent and multi-agent systems on complex reasoning tasks. Code release accompanying the Nature Machine Intelligence manuscript *"Beyond more agents: quantifying when multi-agent collaboration benefits large language model agents"* (the arXiv preprint at arXiv:2512.08296 retains the earlier title *"Towards a science of scaling agent systems"*).
+This repository contains the replication package for our paper,
+**An Empirical Study of Coordination Architecture and Model Composition in LLM Agent Systems**.
+It includes the
+experiment code, configurations, and prediction-model analysis.
 
-## Quick Start
+## Scope
 
-### Prerequisites
+Architectures:
 
-- Python 3.11+
-- [uv](https://docs.astral.sh/uv/getting-started/installation/) package manager
+- `single-agent`
+- `multi-agent-independent`
+- `multi-agent-decentralized`
+- `multi-agent-centralized`
+- `multi-agent-hybrid`
 
-### Installation
+Benchmarks:
 
-```bash
-# Clone the repository and check out the release used for the manuscript
-git clone https://github.com/ybkim95/agent-scaling.git
-cd agent-scaling
-git checkout v2.1.3   # release tag cited in the Code Availability section of the manuscript
+- PlanCraft: 100 instances
+- WorkBench: a seed-42 stratified sample of 100 instances
+- SWE-Bench Verified: a seed-42 sample of 20 instances
 
-# Install dependencies
-uv sync --prerelease=allow
+Model YAMLs are provided for Gemini 2.5 Flash, DeepSeek-V4-Pro,
+DeepSeek-V4-Flash, Qwen3.5-397B, Qwen3.5-9B, Gemma-4-31B, and Gemma-4-E4B.
+The `agent/` configuration directory also contains the heterogeneous teams
+used in the paper.
 
-# Install flash-attn (needed for BrowseComp+ environment)
-uv pip install --no-build-isolation flash-attn
+## Installation
 
-# Activate the virtual environment
-source .venv/bin/activate
-```
-
-### Setting Environment Variables
-
-Create a `.env` file with your LLM API keys. See [LiteLLM providers](https://docs.litellm.ai/docs/providers) for supported providers.
-
-```bash
-# Required: At least one LLM provider API key
-OPENAI_API_KEY="your-openai-key"
-GEMINI_API_KEY="your-gemini-key"
-ANTHROPIC_API_KEY="your-anthropic-key"
-
-# Optional: LangFuse for LLM call tracing
-LANGFUSE_HOST="https://us.cloud.langfuse.com"
-LANGFUSE_SECRET_KEY="your-secret-key"
-LANGFUSE_PUBLIC_KEY="your-public-key"
-```
-
-## Running Experiments
-
-### Basic Usage
-
-Run an experiment with default configuration:
+Requirements: Python 3.11 or newer, `uv`, and Docker for SWE-Bench.
 
 ```bash
-python scripts/run_experiment.py
+uv sync
+cp .env.example .env
 ```
 
-Run in debug mode (processes fewer instances):
+Add the API keys required by the selected model:
+
+- `OPENROUTER_API_KEY`: DeepSeek, Qwen, and Gemma-4-31B
+- `GEMINI_API_KEY`: Gemini 2.5 Flash
+- `FIREWORKS_API_KEY`: Gemma-4-E4B
+
+## Benchmark data
+
+The PlanCraft file is included at `datasets/plancraft-test.json`; the
+configuration uses its first 100 instances.
+
+Generate the WorkBench sample from the pinned upstream revision:
 
 ```bash
-python scripts/run_experiment.py debug=true
+bash scripts/setup_workbench.sh
 ```
 
-### Configuring Experiments
-
-The framework uses [Hydra](https://hydra.cc/docs/intro/) for configuration management. Override parameters via command line:
+Download SWE-Bench Verified:
 
 ```bash
-# Run single-agent on PlanCraft dataset
-python scripts/run_experiment.py agent=single-agent dataset=plancraft-test
-
-# Run multi-agent centralized system
-python scripts/run_experiment.py agent=multi-agent-centralized dataset=plancraft-test
-
-# Run with different LLM (use any model from the paper pool: gpt-5, gpt-5-mini, gpt-5-nano,
-# gemini/gemini-2.0-flash, gemini/gemini-2.5-pro, anthropic/claude-sonnet-4-5, etc.)
-python scripts/run_experiment.py llm.model=openai/gpt-5-mini
-
-# Run with parallel workers
-python scripts/run_experiment.py num_workers=4
-
-# Process more instances
-python scripts/run_experiment.py max_instances=10
+uv run python -m agent_scaling.datasets.swebench_loader \
+  --output datasets/swebench-verified.json
 ```
 
-### Available Configurations
+## Running experiments
 
-#### Agent Types
+One command runs one repetition. Run it ten times for the ten repetitions used
+in the paper.
 
-| Agent | Config Name | Description |
-|-------|-------------|-------------|
-| Single Agent | `single-agent` | Single LLM agent with tool use |
-| Multi-Agent Centralized | `multi-agent-centralized` | Orchestrated multi-agent system with lead agent |
-| Multi-Agent Decentralized | `multi-agent-decentralized` | Peer-to-peer multi-agent coordination |
-| Multi-Agent Hybrid | `multi-agent-hybrid` | Hybrid coordination approach |
-| Multi-Agent Independent | `multi-agent-independent` | Independent parallel agents |
-
-#### Datasets
-
-The paper evaluates on six benchmarks. All six are runnable from this repository. Four ship with direct config files; two (Workbench and Finance Agent) ship with setup scripts that download the upstream tasks and generate the dataset config in one command — see `DATA_AVAILABILITY.md` and `REPRODUCTION.md` for the per-benchmark workflow.
-
-| Dataset | Config Name | Description |
-|---------|-------------|-------------|
-| BrowseComp-Plus | `browsecomp-plus` | Web browsing / multi-hop question answering |
-| PlanCraft | `plancraft-test` | Minecraft crafting planning tasks |
-| SWE-bench Verified | `swebench-verified` | Real-world GitHub issue resolution (Docker; 7 tools) |
-| Terminal-Bench | `terminalbench` | CLI task execution (Docker; 2 tools) |
-| Workbench | `workbench` | Common business tool-use tasks. Run `bash scripts/setup_workbench.sh` to download upstream and generate the dataset config (upstream: https://github.com/olly-styles/WorkBench). |
-| Finance Agent | `finance-agent` | Multi-step financial reasoning. Run `bash scripts/setup_finance_agent.sh` to download upstream and generate the dataset config (upstream: https://github.com/vals-ai/finance-agent). |
-
-#### Supported LLMs
-
-| Provider | Models |
-|----------|--------|
-| OpenAI | GPT-5, GPT-5-mini, GPT-5-nano |
-| Google | Gemini-2.5 Pro, Gemini-2.5 Flash, Gemini-2.0 Flash |
-| Anthropic | Claude Sonnet 4.5, Claude Sonnet 4, Claude Sonnet 3.7 (original 4 benchmarks only; deprecated February 2026 and therefore unavailable for SWE-bench Verified and Terminal-Bench) |
-
-## Example Experiments
-
-### Single-Agent on PlanCraft
+Homogeneous example:
 
 ```bash
-python scripts/run_experiment.py \
-    agent=single-agent \
-    dataset=plancraft-test \
-    llm.model=gemini/gemini-2.0-flash \
-    max_instances=5
+uv run python scripts/run_experiment.py \
+  agent=single-agent \
+  dataset=plancraft-test \
+  llm=deepseek-v4-flash
 ```
 
-### Multi-Agent Centralized on PlanCraft
+Change `agent` to any of the five architectures and `dataset` to
+`plancraft-test`, `workbench`, or `swebench-verified`.
+
+Heterogeneous example:
 
 ```bash
-python scripts/run_experiment.py \
-    agent=multi-agent-centralized \
-    dataset=plancraft-test \
-    llm.model=gemini/gemini-2.0-flash \
-    max_instances=5
+uv run python scripts/run_experiment.py \
+  agent=multi-agent-centralized-qwen-high-subagents \
+  dataset=workbench \
+  llm=qwen3.5-9b
 ```
 
-### Multi-Agent Centralized on BrowseComp-Plus
+For homogeneous teams, the selected `llm` is assigned to every role.
+Heterogeneous YAMLs assign `agents`, or `orchestrator` and `subagent`,
+directly.
+
+## Execution limits
+
+| Architecture | Limit |
+|---|---|
+| Single-Agent | 10 iterations |
+| Independent | 3 agents, 3 iterations per agent |
+| Decentralized | 3 agents, 3 debate rounds, 3 iterations per round |
+| Centralized | 3 subagents, 5 orchestration rounds, 3 iterations per round |
+| Hybrid | 3 subagents, 10 rounds, 3 iterations per agent |
+
+Temperature is 0 and disk caching is disabled by default.
+
+## Outputs
+
+```text
+exp_outputs/<benchmark>/<architecture>/<model>/<date>/<time>/
+├── run_config.yaml
+├── run.log
+├── llm_calls.jsonl
+├── dataset_eval_metrics.json
+└── instance_runs/
+```
+
+`dataset_eval_metrics.json` contains benchmark results, execution time,
+overall token and latency totals, and `tokens_by_model`. The latter supports
+cost calculation for heterogeneous teams.
+
+## Prediction model
+
+The paper data are distributed separately in `data.zip`. Extract `data/`
+beside `scripts/`, then run:
 
 ```bash
-python scripts/run_experiment.py \
-    agent=multi-agent-centralized \
-    dataset=browsecomp-plus \
-    llm.model=openai/gpt-5-mini \
-    max_instances=5
+uv run python scripts/evaluate_prediction.py --data-dir data
 ```
 
-### Single-Agent on SWE-bench Verified (Docker required)
-
-```bash
-python scripts/run_experiment.py \
-    agent=single-agent \
-    dataset=swebench-verified \
-    llm.model=openai/gpt-5-mini \
-    max_instances=5
-```
-
-### Multi-Agent Centralized on Terminal-Bench (Docker required)
-
-```bash
-python scripts/run_experiment.py \
-    agent=multi-agent-centralized \
-    dataset=terminalbench \
-    llm.model=openai/gpt-5-mini \
-    max_instances=5
-```
-
-### Scaling Number of Agents
-
-The multi-agent centralized system supports configuring the number of agents:
-
-```bash
-# Run with 5 agents
-python scripts/run_experiment.py \
-    agent=multi-agent-centralized \
-    agent.n_base_agents=5 \
-    dataset=plancraft-test
-
-# Run with 10 agents
-python scripts/run_experiment.py \
-    agent=multi-agent-centralized \
-    agent.n_base_agents=10 \
-    dataset=plancraft-test
-```
-
-## Output Structure
-
-Experiment outputs are saved to `exp_outputs/{dataset}/{agent}/{model}/{date}/{time}/`:
-
-```
-exp_outputs/
-└── plancraft-test/
-    └── multi-agent-centralized/
-        └── gemini/
-            └── gemini-2.0-flash/
-                └── 2025-01-21/
-                    └── 12-30-45/
-                        ├── run_config.yaml        # Experiment configuration
-                        ├── run.log                # Detailed execution logs
-                        ├── dataset_eval_metrics.json  # Aggregated metrics
-                        └── instance_runs/         # Per-instance outputs
-                            ├── 0000/
-                            ├── 0001/
-                            └── ...
-```
-
-### Output Files
-
-- **`run_config.yaml`**: Full configuration used for the experiment
-- **`run.log`**: Detailed logs including prompts, LLM responses, and tool calls
-- **`dataset_eval_metrics.json`**: Aggregated evaluation metrics
-  ```json
-  {
-    "avg_success": 0.85,
-    "avg_num_steps": 7.2,
-    "num_instances": 100
-  }
-  ```
-
-## Example Traces
-
-See `example_traces/` directory for sanitized sample experiment outputs demonstrating:
-- Single-agent execution traces
-- Multi-agent coordination logs
-- Per-instance and aggregated evaluation metrics
-
-## Project Structure
-
-```
-agent-scaling/
-├── agent_scaling/           # Main Python package
-│   ├── agents/              # Agent implementations
-│   │   ├── single_agent.py
-│   │   ├── multiagent_centralized.py
-│   │   ├── multiagent_decentralized.py
-│   │   ├── multiagent_hybrid.py
-│   │   └── multiagent_independent.py
-│   ├── datasets/            # Dataset loaders (SWE-bench, Terminal-Bench, etc.)
-│   ├── env/                 # Environment & tools (includes Docker environments)
-│   ├── llm/                 # LLM integration
-│   └── config/              # Configuration classes
-├── scripts/                 # Entry point + analysis scripts
-│   ├── run_experiment.py
-│   └── (regression and scaling-principle analysis scripts)
-├── run_conf/                # Hydra configurations
-│   ├── agent/               # Agent configs (single, centralized, decentralized, hybrid, independent)
-│   ├── dataset/             # Dataset configs
-│   └── run_exp.yaml         # Master config
-├── prompts/                 # Prompt templates
-├── example_traces/          # Sanitized sample execution traces
-├── datasets/                # (user-populated) Dataset files; see DATA_AVAILABILITY.md
-├── REPRODUCTION.md          # Step-by-step reproduction guide
-└── DATA_AVAILABILITY.md     # Benchmark source URLs and subset selection methodology
-```
-
-## Configuration Reference
-
-### Master Config (`run_conf/run_exp.yaml`)
-
-```yaml
-defaults:
-  - agent: multi-agent-centralized  # Agent type
-  - dataset: plancraft-test         # Dataset
-
-llm:
-  model: gemini/gemini-2.0-flash    # LLM model
-  params:
-    temperature: 0.0                # Generation temperature
-
-log_langfuse: false                 # Enable LangFuse tracing
-use_disk_cache: true                # Cache LLM calls
-num_workers: 1                      # Parallel workers
-debug: true                         # Debug mode
-max_instances: 3                    # Max instances to process
-```
-
-### Multi-Agent Config (`run_conf/agent/multi-agent-centralized.yaml`)
-
-```yaml
-name: multi-agent-centralized
-n_base_agents: 3                    # Number of agents
-min_iterations_per_agent: 3         # Min iterations per agent
-max_iterations_per_agent: 25        # Max iterations per agent (release ceiling)
-max_rounds: 10                      # Max orchestration / debate rounds (release ceiling)
-consensus_threshold: 0.7            # Decentralized only: agreement fraction for consensus
-communication:
-  strategy: orchestrated            # Communication strategy
-```
+This prints the training, five-fold cross-validation, and transferred-test
+(R^2) values reported in Table 6. Add `--output prediction_r2.csv` to save
+the results.
 
 ## Citation
 
-This work is currently under revision at *Nature Machine Intelligence* under the title *"Beyond more agents: quantifying when multi-agent collaboration benefits large language model agents"*. While the revision is in review, please cite the arXiv preprint (which retains the original title):
+This package builds on Kim et al.'s `agent-scaling` framework:
 
-```bibtex
-@article{kim2025towards,
-  title={Towards a science of scaling agent systems},
-  author={Kim, Yubin and Gu, Ken and Park, Chanwoo and Park, Chunjong and Schmidgall, Samuel and Heydari, A Ali and Yan, Yao and Zhang, Zhihan and Zhuang, Yuchen and Liu, Yun and others},
-  journal={arXiv preprint arXiv:2512.08296},
-  year={2025}
-}
-```
-
-For the archived code release accompanying this work, please cite the version-specific Zenodo DOI given in the accompanying manuscript's Code Availability section, or the persistent concept DOI `10.5281/zenodo.20144433` which always resolves to the latest archived release of this repository.
+> Kim, Y., Gu, K., Park, C. et al. Capable language models can outgrow the
+> benefits of collaboration. *Nature Machine Intelligence* 8, 1157–1172
+> (2026). https://doi.org/10.1038/s42256-026-01268-y
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+The source code is distributed under the MIT license in `LICENSE`. The original
+attribution is retained, and the replication-package modifications are
+identified separately for anonymous review. The data package has its own
+license and provenance statement in `data/LICENSE`. Benchmark and framework
+attributions are listed in `THIRD_PARTY_NOTICES.md`.

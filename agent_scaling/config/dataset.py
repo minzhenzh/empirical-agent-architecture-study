@@ -1,7 +1,6 @@
 import os
 from typing import Any, Dict, List, Optional
 
-from langfuse._client.datasets import DatasetClient
 from pydantic import BaseModel, Field, model_validator
 
 from agent_scaling.datasets import Dataset, DatasetInstance, DatasetSharedPrompts
@@ -19,11 +18,12 @@ class DatasetConfig(BaseModel):
     split: Optional[str] = None
     local_path: Optional[str] = None
     templates_local_path: Optional[str] = None
-    from_langfuse: bool = True
+    from_langfuse: bool = False
     use_llm_eval: bool = False
     eval_llm: Optional[LLMConfig] = None
     eval_prompts: Optional[Dict[str, Prompt]] = None
     dataset_filter: Optional[str] = None
+    max_instances: Optional[int] = None
     env: EnvConfig = Field(default_factory=EnvConfig)
 
     @model_validator(mode="before")
@@ -43,7 +43,7 @@ class DatasetConfig(BaseModel):
         dataset_class = get_dataset_cls(self.dataset_id)
         dataset_instance_class = get_dataset_instance_cls(self.dataset_id)
         self._dataset: Dataset | None = None
-        self._langfuse_dataset: DatasetClient | None = None
+        self._langfuse_dataset: Any | None = None
         if self.templates_local_path:
             task_shared_prompts = DatasetSharedPrompts.from_yaml(
                 yaml_path=self.templates_local_path,
@@ -117,5 +117,5 @@ class DatasetConfig(BaseModel):
         return self._dataset
 
     @property
-    def langfuse_dataset(self) -> DatasetClient | None:
+    def langfuse_dataset(self) -> Any | None:
         return self._langfuse_dataset

@@ -1,0 +1,22 @@
+expected_output: ''
+inp:
+  question: Is average session duration more than 10% lower than it was on Wednesday?
+    If so, please plot it as a line chart since then
+  task_id: analytics-0079
+metrics:
+  execution_time_s: 159.3074096670025
+  extracted_answer: |-
+    Final Answer: The average session duration on Wednesday, 2023-11-29, was 20.5 seconds. There are no visits/session records yet for Thursday, 2023-11-30 (the current date), so the current average session duration is effectively 0 seconds, which is more than 10% lower than Wednesday's value (10% lower threshold = 18.45 seconds). Therefore, the requested line chart was created for session duration from Wednesday through today: plots/2023-11-29_2023-11-30_session_duration_seconds_line.png.
+    <workbenc
+  grading_method: upstream_state_change
+  is_correct: 0
+  is_exact_match: 0
+  n_expected_calls: 0
+  n_predicted_calls: 7
+output:
+  answer: |-
+    Final Answer: The average session duration on Wednesday, 2023-11-29, was 20.5 seconds. There are no visits/session records yet for Thursday, 2023-11-30 (the current date), so the current average session duration is effectively 0 seconds, which is more than 10% lower than Wednesday's value (10% lower threshold = 18.45 seconds). Therefore, the requested line chart was created for session duration from Wednesday through today: plots/2023-11-29_2023-11-30_session_duration_seconds_line.png.
+    <workbench_actions>
+    [{"tool": "analytics.get_average_session_duration", "args": {"time_min": "2023-11-29", "time_max": "2023-11-30"}}, {"tool": "analytics.get_average_session_duration", "args": {"time_min": "2023-11-30", "time_max": "2023-11-30"}}, {"tool": "analytics.total_visits_count", "args": {"time_min": "2023-11-30", "time_max": "2023-11-30"}}, {"tool": "analytics.get_average_session_duration", "args": {"time_min": "2023-11-20", "time_max": "2023-11-30"}}, {"tool": "analytics.create_plot", "args": {"time_min": "2023-11-29", "time_max": "2023-11-30", "value_to_plot": "session_duration_seconds", "plot_type": "line"}}, {"tool": "analytics.get_average_session_duration", "args": {"time_min": "2023-11-29", "time_max": "2023-12-02"}}, {"tool": "analytics.get_average_session_duration", "args": {}}]
+    </workbench_actions>
+  expected_output: ''

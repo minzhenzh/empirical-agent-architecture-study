@@ -1,4 +1,5 @@
 name: single-agent
+max_steps: 10
 prompts:
   main:
     local_path: prompts/single-agent/single-agent.yaml

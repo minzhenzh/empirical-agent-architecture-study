@@ -1,27 +1,18 @@
 defaults:
-  - _self_
-  # - agent: single-agent
-  - agent: multi-agent-centralized
-  # - agent: multi-agent-decentralized
-  # - agent: multi-agent-hybrid
-
+  - agent: single-agent
   - dataset: plancraft-test
-  # - dataset: browsecomp-plus
-
-llm:
-  model: gemini/gemini-2.0-flash  #gpt-4o-mini
-  params:
-    temperature: 0.0
+  - llm: deepseek-v4-flash
+  - override hydra/job_logging: disabled
+  - _self_
 
 log_langfuse: false
-use_disk_cache: true
-num_workers: 1 
-debug: true
-max_instances: 3
-run_name: ${agent.name}_${llm.model}_${now:%Y-%m-%d}_${now:%H-%M-%S}
+use_disk_cache: false
+num_workers: 1
+debug: false
+max_instances: ${dataset.max_instances}
+run_name: ${agent.name}_${dataset.dataset_id}_${now:%Y-%m-%d}_${now:%H-%M-%S}
 
 hydra:
   verbose: false
   run:
-    dir: exp_outputs/${dataset.dataset_id}/${agent.name}/${llm.model}/${now:%Y-%m-%d}/${now:%H-%M-%S}
-hydra/job_logging: disabled
+    dir: exp_outputs/${dataset.dataset_id}/${agent.name}/${hydra:runtime.choices.llm}/${now:%Y-%m-%d}/${now:%H-%M-%S}

@@ -1,0 +1,9 @@
+defaults:
+  - multi-agent-hybrid
+  - _self_
+
+orchestrator: fireworks_ai/accounts/fireworks/models/gemma-4-e4b
+subagent:
+  - openrouter/google/gemma-4-31b-it
+  - openrouter/google/gemma-4-31b-it
+  - openrouter/google/gemma-4-31b-it

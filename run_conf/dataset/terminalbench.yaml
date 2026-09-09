@@ -1,9 +1,0 @@
-dataset_id: terminalbench
-from_langfuse: false
-local_path: datasets/terminalbench.json
-templates_local_path: prompts/dataset-shared/terminalbench.yaml
-env:
-  name: terminalbench
-  tools:
-    - bash
-    - submit

@@ -24,8 +24,7 @@ Output schema (matching the format consumed by ``Dataset.from_json``):
           "instructions": "<natural-language query>",
           "expected_actions": [<list of function-call strings>],
           "expected_answer": "<concatenation of function-call strings>",
-          "tools": ["send_email", "search_emails", "create_event",
-                    "search_events", "submit"],
+          "tools": [],
           "metadata": {
             "source": "workbench",
             "domains": [...],
@@ -109,13 +108,7 @@ def convert_domain_csv(csv_path: Path, domain: str) -> List[Dict[str, Any]]:
                         {"call": call} for call in answer_calls
                     ],
                     "expected_answer": expected_answer,
-                    "tools": [
-                        "send_email",
-                        "search_emails",
-                        "create_event",
-                        "search_events",
-                        "submit",
-                    ],
+                    "tools": [],
                     "metadata": {
                         "source": "workbench",
                         "domains": domains,
@@ -165,7 +158,6 @@ def convert(
     out_json: Path,
     sample_size: Optional[int] = 100,
     seed: int = 42,
-    full_out_json: Optional[Path] = None,
 ) -> int:
     qa_dir = upstream_dir / "data" / "processed" / "queries_and_answers"
     if not qa_dir.exists():
@@ -186,14 +178,6 @@ def convert(
         )
 
     out_json.parent.mkdir(parents=True, exist_ok=True)
-    if full_out_json is not None:
-        full_out_json.parent.mkdir(parents=True, exist_ok=True)
-        full_payload = {"dataset_id": "workbench", "instances": records}
-        full_out_json.write_text(json.dumps(full_payload, indent=2))
-        print(
-            f"[_convert_workbench] wrote {len(records)} full upstream tasks -> {full_out_json}"
-        )
-
     if sample_size is None or sample_size >= len(records):
         selected = records
     else:
@@ -207,12 +191,6 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--upstream-dir", required=True, type=Path)
     parser.add_argument("--out", required=True, type=Path)
-    parser.add_argument(
-        "--full-out",
-        type=Path,
-        default=None,
-        help="Optional path to also write the full upstream JSON (no subsetting).",
-    )
     parser.add_argument(
         "--sample-size",
         type=int,
@@ -231,7 +209,6 @@ def main() -> None:
         args.out,
         sample_size=args.sample_size,
         seed=args.seed,
-        full_out_json=args.full_out,
     )
     print(f"[_convert_workbench] wrote {n} tasks -> {args.out}")
 

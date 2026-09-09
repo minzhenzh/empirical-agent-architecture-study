@@ -1,9 +1,6 @@
 from typing import Any, Callable, Dict, Literal, Type
 
 from .base import BaseAgent
-from .direct_prompt import *
-
-# Import new multi-agent variants
 from .multiagent_centralized import *
 from .multiagent_decentralized import *
 from .multiagent_hybrid import *
@@ -17,6 +14,3 @@ from .registry import (
     register_agent,
 )
 from .single_agent import *
-
-# Import all agent classes after the registry is set up
-from .single_agent_cot import *

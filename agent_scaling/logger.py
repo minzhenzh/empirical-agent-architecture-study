@@ -101,7 +101,9 @@ def patching(record):
     elif record["level"].name == PROMPT_LEVEL_NAME and "messages" in record["extra"]:
         for i, message in enumerate(record["extra"]["messages"]):
             # Escape curly braces and angle brackets in prompt message content
-            content = message["content"]
+            content = message.get("content")
+            if not isinstance(content, str):
+                content = json.dumps(content, default=str)
             content = content.replace("{", "{{").replace("}", "}}")
             content = content.replace("<", "\\<")
             record["extra"]["messages"][i]["content"] = content

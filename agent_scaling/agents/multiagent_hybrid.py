@@ -33,7 +33,7 @@ class HybridMultiAgentSystem(AgentSystemWithTools):
         *args,
         n_base_agents: int = 3,
         min_iterations_per_agent: int = 3,
-        max_iterations_per_agent: int = 7,
+        max_iterations_per_agent: int = 3,
         enable_peer_communication: bool = True,
         **kwargs,
     ):

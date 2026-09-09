@@ -1,4 +1,4 @@
-"""SWE-Bench Verified and Pro dataset classes."""
+"""SWE-Bench Verified dataset classes."""
 
 import json
 from typing import Any, Dict, List, Optional, Union
@@ -8,7 +8,7 @@ from pydantic import Field
 from agent_scaling.datasets.base import Dataset, DatasetInstance, DatasetInstanceOutput
 from agent_scaling.datasets.registry import register_dataset, register_dataset_instance
 
-DATASET_IDS = ["swebench-verified", "swebench-pro"]
+DATASET_IDS = ["swebench-verified"]
 
 
 @register_dataset_instance(DATASET_IDS)
@@ -25,10 +25,7 @@ class SWEBenchInstance(DatasetInstance):
     fail_to_pass: str = "[]"  # JSON string of test list
     pass_to_pass: str = "[]"  # JSON string of test list
     environment_setup_commit: Optional[str] = None  # Verified
-    dockerhub_tag: Optional[str] = None  # Pro
     difficulty: Optional[str] = None  # Verified only
-    repo_language: Optional[str] = None  # Pro only
-    requirements: Optional[str] = None  # Pro only
     version: Optional[str] = None
     created_at: Optional[str] = None
 
@@ -48,11 +45,7 @@ class SWEBenchInstance(DatasetInstance):
         (not '__' as in instance_ids). Format:
         swebench/sweb.eval.x86_64.{instance_id with __ -> _1776_}:latest
         """
-        if self.dockerhub_tag:
-            # Pro: use dockerhub_tag directly
-            tag = self.dockerhub_tag.lower()
-            return f"swebench/sweb.eval.x86_64.{tag}"
-        # Verified: convert instance_id to Docker Hub format
+        # Convert the Verified instance_id to Docker Hub format.
         # e.g. astropy__astropy-12907 -> astropy_1776_astropy-12907
         image_tag = self.instance_id.replace("__", "_1776_")
         return f"swebench/sweb.eval.x86_64.{image_tag}:latest"
@@ -85,7 +78,7 @@ class SWEBenchInstance(DatasetInstance):
 
 @register_dataset(DATASET_IDS)
 class SWEBenchDataset(Dataset):
-    """SWE-Bench Verified or Pro dataset."""
+    """SWE-Bench Verified dataset."""
 
     dataset_id: str = "swebench-verified"
     instances: List[SWEBenchInstance]

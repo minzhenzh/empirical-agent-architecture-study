@@ -1,4 +1,6 @@
 name: multi-agent-hybrid
+orchestrator: ${llm.model}
+subagent: ["${llm.model}", "${llm.model}", "${llm.model}"]
 prompts:
   lead_agent:
     local_path: prompts/multi-agent/lead_agent.yaml
@@ -8,6 +10,7 @@ prompts:
 # Hybrid multi-agent parameters
 n_base_agents: 3
 min_iterations_per_agent: 3
-max_iterations_per_agent: 25
+max_iterations_per_agent: 3
+max_rounds: 10
 enable_peer_communication: true  # Enable agent-driven peer communication
-task_blurb: "hybrid coordinator" 
+task_blurb: "hybrid coordinator"
