@@ -1,0 +1,8 @@
+defaults:
+  - multi-agent-decentralized
+  - _self_
+
+agents:
+  - openrouter/deepseek/deepseek-v4-flash
+  - fireworks_ai/accounts/fireworks/models/gemma-4-e4b
+  - fireworks_ai/accounts/fireworks/models/gemma-4-e4b

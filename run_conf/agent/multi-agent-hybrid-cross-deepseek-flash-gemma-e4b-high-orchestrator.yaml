@@ -1,0 +1,9 @@
+defaults:
+  - multi-agent-hybrid
+  - _self_
+
+orchestrator: openrouter/deepseek/deepseek-v4-flash
+subagent:
+  - fireworks_ai/accounts/fireworks/models/gemma-4-e4b
+  - fireworks_ai/accounts/fireworks/models/gemma-4-e4b
+  - fireworks_ai/accounts/fireworks/models/gemma-4-e4b

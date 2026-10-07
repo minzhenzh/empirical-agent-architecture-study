@@ -1,9 +1,0 @@
-defaults:
-  - multi-agent-hybrid
-  - _self_
-
-orchestrator: openrouter/deepseek/deepseek-v4-flash
-subagent:
-  - openrouter/google/gemma-4-31b-it
-  - openrouter/google/gemma-4-31b-it
-  - openrouter/google/gemma-4-31b-it

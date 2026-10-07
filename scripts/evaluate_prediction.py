@@ -1,11 +1,12 @@
-"""Evaluate the Intelligence Index prediction function reported in Table 6.
+"""Evaluate the Intelligence Index prediction function reported in Table 9 (RQ5).
 
 The implementation follows Kim et al.'s 19-predictor OLS specification and
 feature construction. It refits the function on Kim et al.'s 260 configurations
 using Artificial Analysis Intelligence Index v4.1 as model capability.
 
 It then evaluates the fitted functions, without refitting, on the mean success
-rates from this study's repeated RQ1 runs. Only the R-squared values needed by
+rates of the homogeneous RQ2 runs (six models; the Gemini 2.5 Flash runs of RQ1
+are excluded). Only the R-squared values needed by
 the manuscript are printed. The data directory is deliberately supplied as a
 command-line argument so source and data can be distributed as separate ZIPs.
 
@@ -176,7 +177,7 @@ def load_test_runs(path: Path) -> pd.DataFrame:
 
     counts = runs.groupby(group_keys)["run"].nunique()
     if counts.nunique() != 1:
-        raise ValueError("RQ1 configurations do not all have the same repetition count")
+        raise ValueError("Homogeneous configurations do not all have the same repetition count")
 
     frame = (
         runs.groupby(group_keys, as_index=False)
@@ -362,7 +363,7 @@ def main() -> None:
 
     raw = args.data_dir / "raw"
     training = load_training(raw / "prediction_training.csv")
-    test = load_test_runs(raw / "rq1_runs.csv")
+    test = load_test_runs(raw / "homogeneous_runs.csv")
     intelligence = load_intelligence(raw / "model_intelligence.csv")
 
     refitted = evaluate_intelligence(training, test, intelligence)

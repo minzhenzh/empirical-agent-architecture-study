@@ -1,8 +1,0 @@
-defaults:
-  - multi-agent-independent
-  - _self_
-
-agents:
-  - openrouter/deepseek/deepseek-v4-flash
-  - openrouter/deepseek/deepseek-v4-flash
-  - openrouter/google/gemma-4-31b-it

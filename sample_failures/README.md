@@ -1,6 +1,6 @@
 # Failed-run samples
 
-Examples for the brief trace inspection in Section 4.2.2. Each directory
+Examples for the failure-trace inspection in RQ4.3 and Appendix F. Each directory
 contains the agent trajectory and evaluation record.
 
 ## Repeated unsuccessful actions

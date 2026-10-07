@@ -1,7 +1,7 @@
-# An Empirical Study of Coordination Architecture and Model Composition in LLM Agent Systems
+# Evaluating the Architectural Configuration Space of LLM-Powered Agents: Replication, Generalizability, Extension, and Lessons Learned
 
 This repository contains the replication package for our paper,
-**An Empirical Study of Coordination Architecture and Model Composition in LLM Agent Systems**.
+**Evaluating the Architectural Configuration Space of LLM-Powered Agents: Replication, Generalizability, Extension, and Lessons Learned**.
 It includes the
 experiment code, configurations, and prediction-model analysis.
 
@@ -126,7 +126,7 @@ uv run python scripts/evaluate_prediction.py --data-dir data
 ```
 
 This prints the training, five-fold cross-validation, and transferred-test
-(R^2) values reported in Table 6. Add `--output prediction_r2.csv` to save
+(R^2) values reported in Table 9 (RQ5). Add `--output prediction_r2.csv` to save
 the results.
 
 ## Citation
